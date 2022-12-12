@@ -51,7 +51,7 @@ def get_attributed_quotes(text):
                 if quote != "":
                     inAuthor = True
         elif char == " " or char == "\n":
-            if inAuthor and not inQuote and len(author.strip()) > 0:
+            if inAuthor and not inQuote and len(author.strip()) > 0 and len(quote.strip()) > 0:
                 inAuthor = False
                 quotes.append((quote, author))
                 quote = ""
@@ -83,7 +83,8 @@ async def on_message(message):
                 print(quote)
                 txt, author = quote
 
-                if not quote or not author:
+                if len(txt.strip()) < 1 or len(author.strip()) < 1:
+                    print(f"Quote or author is empty: {txt}, {author}")
                     continue
 
                 if "<@" in author:
