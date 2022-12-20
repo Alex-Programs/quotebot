@@ -4,6 +4,7 @@ import json
 from secrets import token_urlsafe
 import os
 import asyncio
+import datetime
 
 intents = discord.Intents.all()
 
@@ -20,11 +21,58 @@ else:
     with open("quotechannel.txt", "w") as f:
         f.write("0")
 
+class State:
+    lastMembers = None
 
 @bot.event
 async def on_ready():
     print("Bot is ready")
 
+    # This whole thing is because people were leaking stuff. Better to have it and not need it than need it and not have it.
+    while True:
+        members = list(bot.get_all_members())
+        time = datetime.datetime.now().isoformat()
+        serialized = json.dumps([{"id": member.id, "name": member.name, "presence": member.raw_status} for member in members])
+        print("Doing member loop at " + time)
+        if serialized != State.lastMembers:
+            print("Members changed at " + time)
+
+            if State.lastMembers is None:
+                State.lastMembers = serialized
+                print("Startup - members:")
+                channel = await bot.fetch_channel(1054884040446058547)
+                await channel.send("Startup - members:")
+                text = ""
+                for member in members:
+                    print(str(member.id) + " " + member.name + " " + member.raw_status)
+                    text += str(member.id) + "-" + member.name + " - " + member.raw_status + "\n"
+
+                print("TEXT: " + text)
+
+                if len(text) > 2000:
+                    for i in range(0, len(text), 2000):
+                        await channel.send(text[i:i+2000])
+
+                else:
+                    await channel.send(text)
+
+                continue
+
+            # find members that are different
+            for member in members:
+                for oldMember in json.loads(State.lastMembers):
+                    if oldMember["id"] == member.id:
+                        if oldMember["presence"] != member.raw_status:
+                            print("Member " + member.name + " changed presence from " + oldMember["presence"] + " to " + member.raw_status)
+                            channel = await bot.fetch_channel(1054884040446058547)
+                            text = f"{time}: Member {member.name} ({member.id}) changed presence from {oldMember.get('presence')} to {member.raw_status}"
+                            await channel.send(text)
+
+                        break
+
+            State.lastMembers = serialized
+
+        await asyncio.sleep(10)
 
 def get_attributed_quotes(text):
     # get all subquotes in the format "quote" - author in the string
